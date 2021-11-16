@@ -43,7 +43,7 @@ pub struct Variable {
 
 impl Variable {
     /// Create a Variable with the given name.
-    fn parse(name: String) -> Self {
+    fn new(name: String) -> Self {
         Variable { name }
     }
 }
@@ -65,7 +65,7 @@ impl Abstraction {
         token_stream.0.pop_front();
 
         let variable = match token_stream.0.pop_front() {
-            Some(Token::Id(char)) => Variable::parse(char.to_string()),
+            Some(Token::Id(char)) => Variable::new(char.to_string()),
             _ => {
                 panic!("Invalid expression.")
             }
@@ -167,7 +167,7 @@ impl LambdaTerm {
                     }
                 }
             }
-            Some(Token::Id(char)) => LambdaTerm::Variable(Variable::parse(char.to_string())),
+            Some(Token::Id(char)) => LambdaTerm::Variable(Variable::new(char.to_string())),
             _ => panic!("Invalid expression."),
         }
     }
