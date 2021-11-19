@@ -179,8 +179,7 @@ mod tests {
 
     #[test]
     fn test_tokenisation() {
-        let test_string = "()λ#\\.az?";
-        let token_stream = TokenStream::new(test_string);
+        let token_stream = TokenStream::new("()λ#\\.az?");
         assert_eq!(
             token_stream.0,
             vec![
