@@ -36,33 +36,48 @@ impl TokenStream {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// A representation of a variable in the lambda calculus.
 pub struct Variable {
     /// If this variable is bound, idx will identify this variable by a de Bruijn index. If the
     /// variable is free, idx may identify this variable using any consistent naming context.
-    idx: u64,
+    pub idx: u64,
 }
 
 impl Variable {
+    /// Create a new variable from a raw de Bruijn index.
+    pub fn new(idx: u64) -> Self {
+        Self { idx }
+    }
+
+    /// Parse a Variable from the supplied TokenStream given a context. The supplied context
+    /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
+    /// level of nesting of the body of this Variable.
     fn parse(name: char, ctx: &HashMap<char, u64>) -> Self {
-        let idx = ctx.get(&name).copied().unwrap_or_else(|| {
+        Self::new(ctx.get(&name).copied().unwrap_or_else(|| {
             let mut hasher = DefaultHasher::new();
             name.hash(&mut hasher);
             hasher.finish()
-        });
-        Variable { idx }
+        }))
     }
 }
 
 #[derive(Debug, Clone)]
 /// A representation of abstraction (a lambda function) in the lambda calculus.
 pub struct Abstraction {
-    body: Box<LambdaTerm>,
+    pub body: Box<LambdaTerm>,
 }
 
 impl Abstraction {
-    /// Parse an abstraction from the supplied TokenStream given a context. The supplied context
+    /// Create a new Abstraction from a raw body. If doing this, be very careful to make sure that
+    /// your de Bruijn indices are correct.
+    pub fn new(body: LambdaTerm) -> Self {
+        Self {
+            body: Box::new(body),
+        }
+    }
+
+    /// Parse an Abstraction from the supplied TokenStream given a context. The supplied context
     /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
     /// level of nesting of the body of this Abstraction.
     fn parse(token_stream: &mut TokenStream, ctx: &mut HashMap<char, u64>) -> Self {
@@ -93,7 +108,7 @@ impl Abstraction {
         }
         // (λ[a-zA-Z].
 
-        let body = Box::new(LambdaTerm::parse(token_stream, ctx));
+        let body = LambdaTerm::parse(token_stream, ctx);
         // (λ[a-zA-Z].{LambdaTerm}
 
         match token_stream.0.pop_front() {
@@ -104,7 +119,7 @@ impl Abstraction {
         }
         // (λ[a-z].{LambdaTerm})
 
-        Abstraction { body }
+        Self::new(body)
     }
 }
 
@@ -116,6 +131,13 @@ pub struct Application {
 }
 
 impl Application {
+    /// Create a new Application from a raw function and argument.
+    pub fn new(function: LambdaTerm, argument: LambdaTerm) -> Self {
+        Self {
+            function: Box::new(function),
+            argument: Box::new(argument),
+        }
+    }
     /// Parse an Application from the supplied TokenStream given a context. The supplied context
     /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
     /// level of nesting of the body of this Application.
@@ -124,10 +146,10 @@ impl Application {
 
         token_stream.0.pop_front();
 
-        let function = Box::new(LambdaTerm::parse(token_stream, ctx));
+        let function = LambdaTerm::parse(token_stream, ctx);
         // ({LambdaTerm}
 
-        let argument = Box::new(LambdaTerm::parse(token_stream, ctx));
+        let argument = LambdaTerm::parse(token_stream, ctx);
         // ({LambdaTerm}{LambdaTerm}
 
         match token_stream.0.pop_front() {
@@ -136,7 +158,7 @@ impl Application {
         }
         // ({LambdaTerm}{LambdaTerm})
 
-        Application { function, argument }
+        Self::new(function, argument)
     }
 }
 
@@ -149,9 +171,9 @@ pub enum LambdaTerm {
 }
 
 impl LambdaTerm {
-    /// Create a new expression from the given string, according to our grammar.
-    pub fn new(string: &str) -> Self {
-        LambdaTerm::parse(&mut TokenStream::new(string), &mut HashMap::new())
+    /// Create a new LambdaTerm from the given string, according to our grammar.
+    pub fn from_str(string: &str) -> Self {
+        Self::parse(&mut TokenStream::new(string), &mut HashMap::new())
     }
 
     /// Parse a LambdaTerm from the supplied TokenStream given a context. The supplied context
@@ -166,7 +188,7 @@ impl LambdaTerm {
                         // parse abstraction
                         token_stream.0.push_front(Token::Lambda);
                         token_stream.0.push_front(Token::OpenParenthesis);
-                        LambdaTerm::Abstraction(Abstraction::parse(
+                        Self::Abstraction(Abstraction::parse(
                             token_stream,
                             &mut ctx.iter().map(|(k, v)| (*k, v + 1)).collect(),
                         ))
@@ -176,7 +198,7 @@ impl LambdaTerm {
                         // parse application
                         token_stream.0.push_front(other);
                         token_stream.0.push_front(Token::OpenParenthesis);
-                        LambdaTerm::Application(Application::parse(token_stream, ctx))
+                        Self::Application(Application::parse(token_stream, ctx))
                     }
                     None => {
                         // (
@@ -185,7 +207,7 @@ impl LambdaTerm {
                     }
                 }
             }
-            Some(Token::Id(char)) => LambdaTerm::Variable(Variable::parse(char, ctx)),
+            Some(Token::Id(char)) => Self::Variable(Variable::parse(char, ctx)),
             _ => panic!("Invalid expression."),
         }
     }
