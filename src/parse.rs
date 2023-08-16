@@ -1,5 +1,4 @@
-use std::collections::{hash_map::DefaultHasher, HashMap, VecDeque};
-use std::hash::{Hash, Hasher};
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug, PartialEq)]
 /// A token in the formal grammar of our lambda calculus.
@@ -54,11 +53,7 @@ impl Variable {
     /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
     /// level of nesting of the body of this Variable.
     fn parse(name: char, ctx: &HashMap<char, u64>) -> Self {
-        Self::new(ctx.get(&name).copied().unwrap_or_else(|| {
-            let mut hasher = DefaultHasher::new();
-            name.hash(&mut hasher);
-            hasher.finish()
-        }))
+        Self::new(*ctx.get(&name).expect("Expression contains free variable."))
     }
 }
 
@@ -203,7 +198,7 @@ impl LambdaTerm {
                     None => {
                         // (
                         // incomplete expression
-                        panic!("Invalid expression!")
+                        panic!("Invalid expression.")
                     }
                 }
             }
