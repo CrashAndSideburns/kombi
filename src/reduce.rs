@@ -37,17 +37,17 @@ impl LambdaTerm {
                         // reachable. I have an inkling that this branch is only accessible for
                         // terms which contain free variables.
                         todo!();
-                    },
+                    }
                     LambdaTerm::Application(_) => {
                         // HACK: I'm also not sure whether or not this code is reachable.
                         todo!();
-                    },
+                    }
                     LambdaTerm::Abstraction(b) => {
                         b.body.replace_idx(*a.argument.clone(), 0).beta_reduce()
                     }
                 }
-            },
-            _ => { self.clone() },
+            }
+            _ => self.clone(),
         }
     }
 }

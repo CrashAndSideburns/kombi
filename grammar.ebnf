@@ -1,7 +1,0 @@
-(* A formal grammar of the lambda calculus used in kombi. *)
-
-expression = variable | abstraction | application;
-variable = (? Any ASCII character from 'a' to 'z', inclusive. ?);
-abstraction = "(", lambda, variable, ".", expression, ")";
-application = "(", expression, expression, ")";
-lambda = "λ" | "\";

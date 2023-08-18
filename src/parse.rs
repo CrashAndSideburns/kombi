@@ -1,39 +1,12 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
-/// A token in the formal grammar of our lambda calculus.
-enum Token {
-    OpenParenthesis,
-    CloseParenthesis,
-    Lambda,
-    Dot,
-    // TODO: Allow for a broader class of identifiers. Something like [a-zA-Z_]\w* would suffice.
-    Id(char),
-}
+use pest::iterators::Pair;
+use pest::Parser;
+use pest_derive::Parser;
 
-impl Token {
-    /// Create a token from some character if it is contained in our grammar.
-    fn new(char: char) -> Option<Self> {
-        match char {
-            '(' => Some(Token::OpenParenthesis),
-            ')' => Some(Token::CloseParenthesis),
-            'λ' | '\\' => Some(Token::Lambda),
-            '.' => Some(Token::Dot),
-            'a'..='z' | 'A'..='Z' => Some(Token::Id(char)),
-            _ => None,
-        }
-    }
-}
-
-/// A string of tokens obtained by tokenising an expression.
-struct TokenStream(VecDeque<Token>);
-
-impl TokenStream {
-    /// Convert a string into a TokenStream. Characters not in our grammar are ignored.
-    fn new(string: &str) -> Self {
-        TokenStream(string.chars().filter_map(Token::new).collect())
-    }
-}
+#[derive(Parser)]
+#[grammar = "kombi.pest"]
+pub struct KombiParser;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// A representation of a variable in the lambda calculus.
@@ -47,13 +20,6 @@ impl Variable {
     /// Create a new variable from a raw de Bruijn index.
     pub fn new(idx: u64) -> Self {
         Self { idx }
-    }
-
-    /// Parse a Variable from the supplied TokenStream given a context. The supplied context
-    /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
-    /// level of nesting of the body of this Variable.
-    fn parse(name: char, ctx: &HashMap<char, u64>) -> Self {
-        Self::new(*ctx.get(&name).expect("Expression contains free variable."))
     }
 }
 
@@ -70,51 +36,6 @@ impl Abstraction {
         Self {
             body: Box::new(body),
         }
-    }
-
-    /// Parse an Abstraction from the supplied TokenStream given a context. The supplied context
-    /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
-    /// level of nesting of the body of this Abstraction.
-    fn parse(token_stream: &mut TokenStream, ctx: &mut HashMap<char, u64>) -> Self {
-        // (λ
-
-        // We have already consumed an OpenParenthesis and a Lambda to verify that this term is an
-        // Abstraction, so verifying again is unnecessary.
-        token_stream.0.pop_front();
-        token_stream.0.pop_front();
-
-        match token_stream.0.pop_front() {
-            Some(Token::Id(char)) => {
-                // Update the context. At the current level of nesting, the de Bruijn index of char
-                // is 0.
-                ctx.insert(char, 0);
-            }
-            _ => {
-                panic!("Invalid expression.")
-            }
-        };
-        // (λ[a-zA-Z]
-
-        match token_stream.0.pop_front() {
-            Some(Token::Dot) => {}
-            _ => {
-                panic!("Invalid expression.")
-            }
-        }
-        // (λ[a-zA-Z].
-
-        let body = LambdaTerm::parse(token_stream, ctx);
-        // (λ[a-zA-Z].{LambdaTerm}
-
-        match token_stream.0.pop_front() {
-            Some(Token::CloseParenthesis) => {}
-            _ => {
-                panic!("Invalid expression.")
-            }
-        }
-        // (λ[a-z].{LambdaTerm})
-
-        Self::new(body)
     }
 }
 
@@ -133,28 +54,6 @@ impl Application {
             argument: Box::new(argument),
         }
     }
-    /// Parse an Application from the supplied TokenStream given a context. The supplied context
-    /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
-    /// level of nesting of the body of this Application.
-    fn parse(token_stream: &mut TokenStream, ctx: &mut HashMap<char, u64>) -> Self {
-        // (
-
-        token_stream.0.pop_front();
-
-        let function = LambdaTerm::parse(token_stream, ctx);
-        // ({LambdaTerm}
-
-        let argument = LambdaTerm::parse(token_stream, ctx);
-        // ({LambdaTerm}{LambdaTerm}
-
-        match token_stream.0.pop_front() {
-            Some(Token::CloseParenthesis) => {}
-            _ => panic!("Invalid expression."),
-        }
-        // ({LambdaTerm}{LambdaTerm})
-
-        Self::new(function, argument)
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -168,42 +67,39 @@ pub enum LambdaTerm {
 impl LambdaTerm {
     /// Create a new LambdaTerm from the given string, according to our grammar.
     pub fn from_str(string: &str) -> Self {
-        Self::parse(&mut TokenStream::new(string), &mut HashMap::new())
+        let parsed = KombiParser::parse(Rule::program, string)
+            .expect("Failed to parse.")
+            .next()
+            .unwrap();
+        LambdaTerm::from_pair(parsed, &mut HashMap::new())
     }
 
-    /// Parse a LambdaTerm from the supplied TokenStream given a context. The supplied context
-    /// defines the bound variables, as well as the de Bruijn indices of bound variables at the
-    /// level of nesting of the body of this LambdaTerm.
-    fn parse(token_stream: &mut TokenStream, ctx: &mut HashMap<char, u64>) -> Self {
-        match token_stream.0.pop_front() {
-            Some(Token::OpenParenthesis) => {
-                match token_stream.0.pop_front() {
-                    Some(Token::Lambda) => {
-                        // (λ
-                        // parse abstraction
-                        token_stream.0.push_front(Token::Lambda);
-                        token_stream.0.push_front(Token::OpenParenthesis);
-                        Self::Abstraction(Abstraction::parse(
-                            token_stream,
-                            &mut ctx.iter().map(|(k, v)| (*k, v + 1)).collect(),
-                        ))
-                    }
-                    Some(other) => {
-                        // ([^λ]
-                        // parse application
-                        token_stream.0.push_front(other);
-                        token_stream.0.push_front(Token::OpenParenthesis);
-                        Self::Application(Application::parse(token_stream, ctx))
-                    }
-                    None => {
-                        // (
-                        // incomplete expression
-                        panic!("Invalid expression.")
-                    }
-                }
+    fn from_pair(pair: Pair<Rule>, ctx: &mut HashMap<String, u64>) -> Self {
+        match pair.as_rule() {
+            Rule::variable => {
+                let idx = *ctx.get(pair.as_str()).expect("Free variable found.");
+                LambdaTerm::Variable(Variable::new(idx))
             }
-            Some(Token::Id(char)) => Self::Variable(Variable::parse(char, ctx)),
-            _ => panic!("Invalid expression."),
+            Rule::abstraction => {
+                let mut pairs = pair.into_inner();
+                let variable = pairs.next().unwrap();
+                let body = pairs.next().unwrap();
+
+                // Update the context.
+                ctx.values_mut().map(|v| *v += 1);
+                ctx.insert(variable.as_str().to_string(), 0);
+
+                // Parse the body in the updated context.
+                LambdaTerm::Abstraction(Abstraction::new(LambdaTerm::from_pair(body, ctx)))
+            }
+            Rule::application => {
+                let mut pairs = pair.into_inner();
+                let function = LambdaTerm::from_pair(pairs.next().unwrap(), ctx);
+                let argument = LambdaTerm::from_pair(pairs.next().unwrap(), ctx);
+
+                LambdaTerm::Application(Application::new(function, argument))
+            }
+            _ => unreachable!(),
         }
     }
 }

@@ -1,0 +1,8 @@
+WHITESPACE = _{ '\x09'..'\x0d' | " " }
+
+variable    = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+abstraction =  { ("(λ" | "(\\") ~ variable ~ "." ~ term ~ ")" }
+// This is a bit silly, but I have to manually handle whitespace for applications to force some whitespace.
+application = ${ "(" ~ WHITESPACE* ~ term ~ WHITESPACE+ ~ term ~ WHITESPACE* ~ ")" }
+term        = _{ variable | abstraction | application }
+program     = _{ SOI ~ term ~ EOI }
