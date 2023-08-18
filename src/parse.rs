@@ -86,7 +86,9 @@ impl LambdaTerm {
                 let body = pairs.next().unwrap();
 
                 // Update the context.
-                ctx.values_mut().map(|v| *v += 1);
+                for v in ctx.values_mut() {
+                    *v += 1;
+                }
                 ctx.insert(variable.as_str().to_string(), 0);
 
                 // Parse the body in the updated context.
