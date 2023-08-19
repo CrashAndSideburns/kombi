@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter, Result};
 
 use pest::iterators::Pair;
 use pest::Parser;
@@ -102,6 +103,22 @@ impl LambdaTerm {
                 LambdaTerm::Application(Application::new(function, argument))
             }
             _ => unreachable!(),
+        }
+    }
+}
+
+impl Display for LambdaTerm {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            LambdaTerm::Variable(v) => {
+                write!(f, "{}", v.idx)
+            },
+            LambdaTerm::Abstraction(a) => {
+                write!(f, "λ {}", a.body)
+            },
+            LambdaTerm::Application(a) => {
+                write!(f, "{} {}", a.function, a.argument)
+            },
         }
     }
 }

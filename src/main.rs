@@ -47,7 +47,6 @@ fn main() {
     if cli.debug {
         println!("{:?}", lambda_term);
     } else {
-        todo!("Implement Display for LambdaTerm.");
-        // println!("{}", lambda_term);
+        println!("{}", lambda_term);
     }
 }
