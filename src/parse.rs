@@ -72,10 +72,10 @@ impl LambdaTerm {
             .expect("Failed to parse.")
             .next()
             .unwrap();
-        LambdaTerm::from_pair(parsed, &mut HashMap::new())
+        LambdaTerm::from_pair(parsed, HashMap::new())
     }
 
-    fn from_pair(pair: Pair<Rule>, ctx: &mut HashMap<String, u64>) -> Self {
+    fn from_pair(pair: Pair<Rule>, mut ctx: HashMap<String, u64>) -> Self {
         match pair.as_rule() {
             Rule::variable => {
                 let idx = *ctx.get(pair.as_str()).expect("Free variable found.");
@@ -97,7 +97,7 @@ impl LambdaTerm {
             }
             Rule::application => {
                 let mut pairs = pair.into_inner();
-                let function = LambdaTerm::from_pair(pairs.next().unwrap(), ctx);
+                let function = LambdaTerm::from_pair(pairs.next().unwrap(), ctx.clone());
                 let argument = LambdaTerm::from_pair(pairs.next().unwrap(), ctx);
 
                 LambdaTerm::Application(Application::new(function, argument))
@@ -117,7 +117,13 @@ impl Display for LambdaTerm {
                 write!(f, "λ {}", a.body)
             },
             LambdaTerm::Application(a) => {
-                write!(f, "{} {}", a.function, a.argument)
+                if let LambdaTerm::Abstraction(_) = *a.function {
+                    write!(f, "({}) {}", a.function, a.argument)
+                } else if let LambdaTerm::Application(_) = *a.argument {
+                    write!(f, "{} ({})", a.function, a.argument)
+                } else {
+                    write!(f, "{} {}", a.function, a.argument)
+                }
             },
         }
     }
