@@ -98,9 +98,14 @@ impl LambdaTerm {
             Rule::application => {
                 let mut pairs = pair.into_inner();
                 let function = LambdaTerm::from_pair(pairs.next().unwrap(), ctx.clone());
-                let argument = LambdaTerm::from_pair(pairs.next().unwrap(), ctx);
+                let argument = LambdaTerm::from_pair(pairs.next().unwrap(), ctx.clone());
 
-                LambdaTerm::Application(Application::new(function, argument))
+                LambdaTerm::Application(pairs.fold(Application::new(function, argument), |a, p| {
+                    Application::new(
+                        LambdaTerm::Application(a),
+                        LambdaTerm::from_pair(p, ctx.clone()),
+                    )
+                }))
             }
             _ => unreachable!(),
         }
@@ -112,10 +117,10 @@ impl Display for LambdaTerm {
         match self {
             LambdaTerm::Variable(v) => {
                 write!(f, "{}", v.idx)
-            },
+            }
             LambdaTerm::Abstraction(a) => {
                 write!(f, "λ {}", a.body)
-            },
+            }
             LambdaTerm::Application(a) => {
                 if let LambdaTerm::Abstraction(_) = *a.function {
                     write!(f, "({}) {}", a.function, a.argument)
@@ -124,7 +129,7 @@ impl Display for LambdaTerm {
                 } else {
                     write!(f, "{} {}", a.function, a.argument)
                 }
-            },
+            }
         }
     }
 }
