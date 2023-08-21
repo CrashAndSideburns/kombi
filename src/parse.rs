@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result};
+use std::process::exit;
 
+use pest::error::{Error, ErrorVariant};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
@@ -69,7 +71,10 @@ impl LambdaTerm {
     /// Create a new LambdaTerm from the given string, according to our grammar.
     pub fn from_str(string: &str) -> Self {
         let parsed = KombiParser::parse(Rule::program, string)
-            .expect("Failed to parse.")
+            .unwrap_or_else(|e| {
+                eprintln!("{}", e);
+                exit(1);
+            })
             .next()
             .unwrap();
         LambdaTerm::from_pair(parsed, HashMap::new())
@@ -78,7 +83,16 @@ impl LambdaTerm {
     fn from_pair(pair: Pair<Rule>, mut ctx: HashMap<String, u64>) -> Self {
         match pair.as_rule() {
             Rule::variable => {
-                let idx = *ctx.get(pair.as_str()).expect("Free variable found.");
+                let idx = *ctx.get(pair.as_str()).unwrap_or_else(|| {
+                    let e = Error::new_from_span(
+                        ErrorVariant::<()>::CustomError {
+                            message: format!("variable {} is not bound", pair.as_str()),
+                        },
+                        pair.as_span(),
+                    );
+                    eprintln!("{}", e);
+                    exit(1);
+                });
                 LambdaTerm::Variable(Variable::new(idx))
             }
             Rule::abstraction => {

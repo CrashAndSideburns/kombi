@@ -3,6 +3,7 @@ mod reduce;
 
 use std::fs::read_to_string;
 use std::path::PathBuf;
+use std::process::exit;
 
 use clap::Parser;
 
@@ -23,15 +24,21 @@ fn main() {
     let cli = Cli::parse();
 
     // Read a lambda term from the file supplied by the user.
-    let lambda_term = read_to_string(cli.file)
+    let lambda_term = read_to_string(&cli.file)
         .map(|s| LambdaTerm::from_str(&s))
-        .unwrap();
+        .unwrap_or_else(|e| {
+            eprintln!("Unable to open file {}: {}", cli.file.display(), e);
+            exit(1);
+        });
 
     // If an argument was supplied, apply it to the required term.
     let lambda_term = if let Some(path) = cli.arg {
-        let arg = read_to_string(path)
+        let arg = read_to_string(&path)
             .map(|s| LambdaTerm::from_str(&s))
-            .unwrap();
+            .unwrap_or_else(|e| {
+                eprintln!("Unable to open file {}: {}", path.display(), e);
+                exit(1);
+            });
         LambdaTerm::Application(Application::new(lambda_term, arg))
     } else {
         lambda_term
