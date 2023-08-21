@@ -1,5 +1,5 @@
 # kombi
-kombi is an untyped lambda calculus written in Rust, for some goddamn reason.
+kombi is an untyped lambda calculus written in Rust, for some reason.
 
 ## Installation
 Don't.
