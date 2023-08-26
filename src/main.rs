@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 mod parse;
 mod reduce;
 
@@ -7,7 +9,7 @@ use std::process::exit;
 
 use clap::Parser;
 
-use crate::parse::{Application, LambdaTerm};
+use crate::parse::LambdaTerm;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about=None)]
@@ -24,22 +26,27 @@ fn main() {
     let cli = Cli::parse();
 
     // Read a lambda term from the file supplied by the user.
-    let lambda_term = read_to_string(&cli.file)
-        .map(|s| LambdaTerm::from_str(&s))
-        .unwrap_or_else(|e| {
+    let lambda_term = read_to_string(&cli.file).map_or_else(
+        |e| {
             eprintln!("Unable to open file {}: {}", cli.file.display(), e);
             exit(1);
-        });
+        },
+        |s| LambdaTerm::from_str(&s),
+    );
 
     // If an argument was supplied, apply it to the required term.
     let lambda_term = if let Some(path) = cli.arg {
-        let arg = read_to_string(&path)
-            .map(|s| LambdaTerm::from_str(&s))
-            .unwrap_or_else(|e| {
+        let arg = read_to_string(&path).map_or_else(
+            |e| {
                 eprintln!("Unable to open file {}: {}", path.display(), e);
                 exit(1);
-            });
-        LambdaTerm::Application(Application::new(lambda_term, arg))
+            },
+            |s| LambdaTerm::from_str(&s),
+        );
+        LambdaTerm::Application {
+            function: Box::new(lambda_term),
+            argument: Box::new(arg),
+        }
     } else {
         lambda_term
     };
@@ -52,8 +59,8 @@ fn main() {
     // Bruijn indices replaced with human-readable names. The output format will always be parsable
     // as a valid lambda term, so computations can be chained together.
     if cli.debug {
-        println!("{:?}", lambda_term);
+        println!("{lambda_term:?}");
     } else {
-        println!("{}", lambda_term);
+        println!("{lambda_term}");
     }
 }
