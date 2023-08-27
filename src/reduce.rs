@@ -12,7 +12,11 @@ impl LambdaTerm {
                     self.clone()
                 }
             }
-            LambdaTerm::Abstraction { body } => LambdaTerm::Abstraction {
+            LambdaTerm::Abstraction {
+                argument_type,
+                body,
+            } => LambdaTerm::Abstraction {
+                argument_type: argument_type.clone(),
                 body: Box::new(body.replace_idx(new, replacement_idx + 1)),
             },
             LambdaTerm::Application { function, argument } => LambdaTerm::Application {
@@ -32,7 +36,7 @@ impl LambdaTerm {
                 // β-reduced itself prior to substitution. β-reduction is then applied
                 // post-substitution.
                 match function.beta_reduce() {
-                    LambdaTerm::Abstraction { body } => {
+                    LambdaTerm::Abstraction { body, .. } => {
                         body.replace_idx(*argument.clone(), 0).beta_reduce()
                     }
                     _ => {

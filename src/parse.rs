@@ -11,6 +11,39 @@ use pest_derive::Parser;
 #[grammar = "kombi.pest"]
 pub struct KombiParser;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    BaseType(String),
+    FunctionType(Box<Type>, Box<Type>),
+}
+
+impl Type {
+    fn from_pair(pair: Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::base_type => Type::BaseType(pair.as_str().to_string()),
+            Rule::function_type => {
+                let mut pairs = pair.into_inner();
+                let argument_type = Box::new(Self::from_pair(pairs.next().unwrap()));
+                let return_type = Box::new(Self::from_pair(pairs.next().unwrap()));
+                Type::FunctionType(argument_type, return_type)
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Type::BaseType(name) => name.fmt(f),
+            Type::FunctionType(argument_type, return_type) => match **argument_type {
+                Type::BaseType(_) => write!(f, "{argument_type}→{return_type}"),
+                Type::FunctionType(..) => write!(f, "({argument_type})→{return_type}"),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// A representation of an arbitrary expression in the lambda calculus.
 pub enum LambdaTerm {
@@ -18,6 +51,7 @@ pub enum LambdaTerm {
         idx: u64,
     },
     Abstraction {
+        argument_type: Type,
         body: Box<LambdaTerm>,
     },
     Application {
@@ -57,6 +91,7 @@ impl LambdaTerm {
             Rule::abstraction => {
                 let mut pairs = pair.into_inner();
                 let variable = pairs.next().unwrap();
+                let argument_type = Type::from_pair(pairs.next().unwrap());
                 let body = pairs.next().unwrap();
 
                 // Update the context.
@@ -67,6 +102,7 @@ impl LambdaTerm {
 
                 // Parse the body in the updated context.
                 LambdaTerm::Abstraction {
+                    argument_type,
                     body: Box::new(LambdaTerm::from_pair(body, ctx)),
                 }
             }
@@ -93,8 +129,11 @@ impl Display for LambdaTerm {
             LambdaTerm::Variable { idx } => {
                 write!(f, "{idx}")
             }
-            LambdaTerm::Abstraction { body } => {
-                write!(f, "λ {body}")
+            LambdaTerm::Abstraction {
+                argument_type,
+                body,
+            } => {
+                write!(f, "λ:{argument_type} {body}")
             }
             LambdaTerm::Application { function, argument } => {
                 if let LambdaTerm::Abstraction { .. } = **function {

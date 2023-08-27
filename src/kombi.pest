@@ -1,7 +1,11 @@
 WHITESPACE = _{ '\x09'..'\x0d' | " " }
 
+base_type     = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+function_type =  { "(" ~ type ~ ")" ~ ("→" | "->") ~ "(" ~ type ~ ")" }
+type          = _{ function_type | base_type | "(" ~ term ~ ")" }
+
 variable    = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-abstraction =  { ("λ" | "\\") ~ variable ~ "." ~ term }
+abstraction =  { ("λ" | "\\") ~ variable ~ ":" ~ type ~ "." ~ term }
 application =  { (abstraction | variable | "(" ~ term ~ ")"){2, } }
 term        = _{ application | abstraction | variable | "(" ~ term ~ ")" }
 program     = _{ SOI ~ term ~ EOI }

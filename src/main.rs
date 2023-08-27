@@ -2,6 +2,7 @@
 
 mod parse;
 mod reduce;
+mod type_check;
 
 use std::fs::read_to_string;
 use std::path::PathBuf;
@@ -51,6 +52,11 @@ fn main() {
         lambda_term
     };
 
+    let lambda_term_type = lambda_term.get_type().unwrap_or_else(|e| {
+        eprintln!("Term {lambda_term} is not well-typed: {e}");
+        exit(1);
+    });
+
     // Compute the β-reduction of the lambda term.
     let lambda_term = lambda_term.beta_reduce();
 
@@ -59,8 +65,8 @@ fn main() {
     // Bruijn indices replaced with human-readable names. The output format will always be parsable
     // as a valid lambda term, so computations can be chained together.
     if cli.debug {
-        println!("{lambda_term:?}");
+        println!("({lambda_term:?}):{lambda_term_type:?}");
     } else {
-        println!("{lambda_term}");
+        println!("({lambda_term}):{lambda_term_type}");
     }
 }
