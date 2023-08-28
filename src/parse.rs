@@ -23,9 +23,12 @@ impl Type {
             Rule::base_type => Type::BaseType(pair.as_str().to_string()),
             Rule::function_type => {
                 let mut pairs = pair.into_inner();
-                let argument_type = Box::new(Self::from_pair(pairs.next().unwrap()));
-                let return_type = Box::new(Self::from_pair(pairs.next().unwrap()));
-                Type::FunctionType(argument_type, return_type)
+                let return_type = Box::new(Self::from_pair(pairs.next_back().unwrap()));
+                let argument_type = Box::new(Self::from_pair(pairs.next_back().unwrap()));
+                
+                pairs.rfold(Type::FunctionType(argument_type, return_type), |a, p| {
+                    Type::FunctionType(Box::new(Self::from_pair(p)), Box::new(a))
+                })
             }
             _ => unreachable!(),
         }
