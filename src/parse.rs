@@ -150,8 +150,3 @@ impl Display for LambdaTerm {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}

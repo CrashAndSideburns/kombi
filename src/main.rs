@@ -15,10 +15,13 @@ use crate::parse::LambdaTerm;
 #[derive(Parser)]
 #[command(author, version, about, long_about=None)]
 struct Cli {
+    /// File containing the term to be evaluated
     file: PathBuf,
+    /// Evaluate the application of the term contained in <FILE> to the term contained in <ARG>
     #[arg(short, long)]
     arg: Option<PathBuf>,
 
+    /// Print evaluated term in debug format
     #[arg(short, long)]
     debug: bool,
 }

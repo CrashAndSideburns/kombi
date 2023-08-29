@@ -1,6 +1,6 @@
 [package]
 name = "kombi"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Morgan Arnold <morgan.arnold@proton.me>"]
 edition = "2021"
 description = "A typed lambda calculus written in Rust."
